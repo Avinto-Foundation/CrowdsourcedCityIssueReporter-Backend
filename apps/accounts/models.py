@@ -13,12 +13,10 @@ class Role(models.Model):
 
 class User(AbstractUser):
     role = models.ForeignKey(
-        Role,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name='users'
-    )
+    Role,
+    on_delete=models.PROTECT,
+    related_name='users'
+)
     full_name = models.CharField(max_length=150)
     email = models.EmailField(unique=True)
     phone_number = models.CharField(max_length=20, blank=True)
