@@ -213,3 +213,53 @@ class IssueCreationTests(APITestCase):
         issue = Issue.objects.get()
 
         self.assertEqual(issue.priority, "Medium")
+
+    def test_guest_can_view_issue_list(self):
+        Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title=self.issue_data["title"],
+            description=self.issue_data["description"],
+            latitude=self.issue_data["latitude"],
+            longitude=self.issue_data["longitude"],
+        )
+
+        response = self.client.get(reverse("issue-list"))
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+        self.assertEqual(len(response.data), 1)
+
+    def test_guest_can_view_issue_details(self):
+        issue = Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title=self.issue_data["title"],
+            description=self.issue_data["description"],
+            latitude=self.issue_data["latitude"],
+            longitude=self.issue_data["longitude"],
+        )
+
+        response = self.client.get(
+            reverse("issue-detail", kwargs={"pk": issue.id})
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+        self.assertEqual(response.data["title"], issue.title)
+
+    def test_nonexistent_issue_returns_404(self):
+        response = self.client.get(
+            reverse("issue-detail", kwargs={"pk": 9999})
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_404_NOT_FOUND,
+        )
