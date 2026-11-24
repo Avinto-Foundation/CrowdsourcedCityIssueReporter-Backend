@@ -15,9 +15,31 @@ class IssueCreateView(generics.CreateAPIView):
 
 
 class IssueListView(generics.ListAPIView):
-    queryset = Issue.objects.all().order_by('-created_at')
     serializer_class = IssueSerializer
     permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        queryset = Issue.objects.all().order_by('-created_at')
+
+        category_id = self.request.query_params.get('category')
+        district_id = self.request.query_params.get('district')
+        municipality_id = self.request.query_params.get('municipality')
+        ward_id = self.request.query_params.get('ward')
+
+        if category_id:
+            queryset = queryset.filter(category_id=category_id)
+        if district_id:
+            queryset = queryset.filter(
+                ward__municipality__district_id=district_id
+            )
+        if municipality_id:
+            queryset = queryset.filter(
+                ward__municipality_id=municipality_id
+            )
+        if ward_id:
+            queryset = queryset.filter(ward_id=ward_id)
+
+        return queryset
 
 
 class IssueDetailView(generics.RetrieveAPIView):
