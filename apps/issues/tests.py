@@ -435,3 +435,114 @@ class IssueCreationTests(APITestCase):
             response.data[0]["title"],
             "Ward 1 Issue",
         )
+
+    def test_search_issues_by_title(self):
+        Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Pothole on Main Road",
+            description="Damaged road surface",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        Issue.objects.create(
+            user=self.user,
+            category=self.second_category,
+            ward=self.second_ward,
+            title="Water Supply Problem",
+            description="No water available",
+            latitude=27.7000,
+            longitude=85.3000,
+        )
+
+        response = self.client.get(
+            reverse("issue-list"),
+            {"search": "Pothole"},
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(
+            response.data[0]["title"],
+            "Pothole on Main Road",
+        )
+
+    def test_search_issues_by_description(self):
+        Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Road Problem",
+            description="Large pothole near the school",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        Issue.objects.create(
+            user=self.user,
+            category=self.second_category,
+            ward=self.second_ward,
+            title="Water Supply Problem",
+            description="No water available",
+            latitude=27.7000,
+            longitude=85.3000,
+        )
+
+        response = self.client.get(
+            reverse("issue-list"),
+            {"search": "pothole"},
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(
+            response.data[0]["title"],
+            "Road Problem",
+        )
+
+    def test_search_issues_with_category_filter(self):
+        Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Pothole on Main Road",
+            description="Damaged road surface",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        Issue.objects.create(
+            user=self.user,
+            category=self.second_category,
+            ward=self.second_ward,
+            title="Pothole near Water Supply",
+            description="Damaged road surface",
+            latitude=27.7000,
+            longitude=85.3000,
+        )
+
+        response = self.client.get(
+            reverse("issue-list"),
+            {
+                "search": "Pothole",
+                "category": self.category.id,
+            },
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(
+            response.data[0]["title"],
+            "Pothole on Main Road",
+        )
