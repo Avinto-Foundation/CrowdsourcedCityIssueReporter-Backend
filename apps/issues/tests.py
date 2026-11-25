@@ -58,6 +58,28 @@ class IssueCreationTests(APITestCase):
             ward_number=1,
         )
 
+        self.second_category = Category.objects.create(
+            category_name_en="Water Supply",
+            category_name_ne="खानेपानी",
+            description_en="Water supply problems",
+            description_ne="खानेपानी सम्बन्धी समस्या",
+            is_active=True,
+        )
+
+        self.second_district = District.objects.create(
+            district_name="Second Test District"
+        )
+
+        self.second_municipality = Municipality.objects.create(
+            district=self.second_district,
+            municipality_name="Second Test Municipality",
+        )
+
+        self.second_ward = Ward.objects.create(
+            municipality=self.second_municipality,
+            ward_number=2,
+        )
+
         self.url = reverse("issue-create")
 
         self.issue_data = {
@@ -231,6 +253,7 @@ class IssueCreationTests(APITestCase):
             response.status_code,
             status.HTTP_200_OK,
         )
+
         self.assertEqual(len(response.data), 1)
 
     def test_guest_can_view_issue_details(self):
@@ -252,6 +275,7 @@ class IssueCreationTests(APITestCase):
             response.status_code,
             status.HTTP_200_OK,
         )
+
         self.assertEqual(response.data["title"], issue.title)
 
     def test_nonexistent_issue_returns_404(self):
@@ -262,4 +286,152 @@ class IssueCreationTests(APITestCase):
         self.assertEqual(
             response.status_code,
             status.HTTP_404_NOT_FOUND,
+        )
+
+    def test_filter_issues_by_category(self):
+        Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Road Damage Issue",
+            description="Damaged road",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        Issue.objects.create(
+            user=self.user,
+            category=self.second_category,
+            ward=self.second_ward,
+            title="Water Supply Issue",
+            description="No water supply",
+            latitude=27.7000,
+            longitude=85.3000,
+        )
+
+        response = self.client.get(
+            reverse("issue-list"),
+            {"category": self.category.id},
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(
+            response.data[0]["title"],
+            "Road Damage Issue",
+        )
+
+    def test_filter_issues_by_district(self):
+        Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="First District Issue",
+            description="Issue in first district",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        Issue.objects.create(
+            user=self.user,
+            category=self.second_category,
+            ward=self.second_ward,
+            title="Second District Issue",
+            description="Issue in second district",
+            latitude=27.7000,
+            longitude=85.3000,
+        )
+
+        response = self.client.get(
+            reverse("issue-list"),
+            {"district": self.district.id},
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(
+            response.data[0]["title"],
+            "First District Issue",
+        )
+
+    def test_filter_issues_by_municipality(self):
+        Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="First Municipality Issue",
+            description="Issue in first municipality",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        Issue.objects.create(
+            user=self.user,
+            category=self.second_category,
+            ward=self.second_ward,
+            title="Second Municipality Issue",
+            description="Issue in second municipality",
+            latitude=27.7000,
+            longitude=85.3000,
+        )
+
+        response = self.client.get(
+            reverse("issue-list"),
+            {"municipality": self.municipality.id},
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(
+            response.data[0]["title"],
+            "First Municipality Issue",
+        )
+
+    def test_filter_issues_by_ward(self):
+        Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Ward 1 Issue",
+            description="Issue in ward 1",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        Issue.objects.create(
+            user=self.user,
+            category=self.second_category,
+            ward=self.second_ward,
+            title="Ward 2 Issue",
+            description="Issue in ward 2",
+            latitude=27.7000,
+            longitude=85.3000,
+        )
+
+        response = self.client.get(
+            reverse("issue-list"),
+            {"ward": self.ward.id},
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(
+            response.data[0]["title"],
+            "Ward 1 Issue",
         )
