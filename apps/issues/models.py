@@ -1,3 +1,4 @@
+
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
@@ -12,6 +13,15 @@ class Issue(models.Model):
         ('Medium', 'Medium'),
         ('High', 'High'),
         ('Urgent', 'Urgent'),
+    ]
+
+    STATUS_CHOICES = [
+        ('Submitted', 'Submitted'),
+        ('Under Review', 'Under Review'),
+        ('Assigned', 'Assigned'),
+        ('In Progress', 'In Progress'),
+        ('Resolved', 'Resolved'),
+        ('Closed', 'Closed'),
     ]
 
     user = models.ForeignKey(
@@ -45,6 +55,11 @@ class Issue(models.Model):
         max_length=10,
         choices=PRIORITY_CHOICES,
         default='Medium'
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='Submitted'
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
