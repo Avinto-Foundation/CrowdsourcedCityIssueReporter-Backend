@@ -111,6 +111,7 @@ class IssueCreationTests(APITestCase):
 
         self.assertEqual(issue.user, self.user)
         self.assertEqual(issue.title, self.issue_data["title"])
+        self.assertEqual(issue.status, "Submitted")
 
     def test_guest_cannot_create_issue(self):
         response = self.client.post(
