@@ -1,3 +1,4 @@
+from django.db.models import Q
 from rest_framework import generics
 from rest_framework.permissions import AllowAny
 
@@ -25,6 +26,7 @@ class IssueListView(generics.ListAPIView):
         district_id = self.request.query_params.get('district')
         municipality_id = self.request.query_params.get('municipality')
         ward_id = self.request.query_params.get('ward')
+        search_query = self.request.query_params.get('search')
 
         if category_id:
             queryset = queryset.filter(category_id=category_id)
@@ -38,6 +40,12 @@ class IssueListView(generics.ListAPIView):
             )
         if ward_id:
             queryset = queryset.filter(ward_id=ward_id)
+
+        if search_query:
+            queryset = queryset.filter(
+                Q(title__icontains=search_query) |
+                Q(description__icontains=search_query)
+            )
 
         return queryset
 
