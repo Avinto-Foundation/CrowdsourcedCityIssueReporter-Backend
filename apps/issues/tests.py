@@ -547,3 +547,41 @@ class IssueCreationTests(APITestCase):
             response.data[0]["title"],
             "Pothole on Main Road",
         )
+
+    def test_filter_issues_by_status(self):
+        Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Submitted Issue",
+            description="A newly reported issue",
+            latitude=27.7172,
+            longitude=85.3240,
+            status="Submitted",
+        )
+
+        Issue.objects.create(
+            user=self.user,
+            category=self.second_category,
+            ward=self.second_ward,
+            title="Resolved Issue",
+            description="An issue that has been resolved",
+            latitude=27.7000,
+            longitude=85.3000,
+            status="Resolved",
+        )
+
+        response = self.client.get(
+            reverse("issue-list"),
+            {"status": "Submitted"},
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(
+            response.data[0]["title"],
+            "Submitted Issue",
+        )
