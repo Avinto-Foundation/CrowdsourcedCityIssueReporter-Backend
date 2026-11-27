@@ -1,10 +1,12 @@
 
 from django.db import models
 from django.db.models import Q
-from rest_framework import generics
+from rest_framework import generics, status
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 
-from .models import Issue
+from .models import Issue, IssueVote
 from .serializers import IssueSerializer
 from .permissions import IsRegisteredUser
 
@@ -75,6 +77,11 @@ class IssueListView(generics.ListAPIView):
         elif sort_by == 'recently_updated':
             queryset = queryset.order_by('-updated_at')
 
+        elif sort_by == 'most_upvoted':
+            queryset = queryset.annotate(
+                vote_count=models.Count('votes')
+            ).order_by('-vote_count', '-created_at')
+
         else:
             queryset = queryset.order_by('-created_at')
 
@@ -85,3 +92,55 @@ class IssueDetailView(generics.RetrieveAPIView):
     queryset = Issue.objects.all()
     serializer_class = IssueSerializer
     permission_classes = [AllowAny]
+
+
+class IssueVoteView(APIView):
+    permission_classes = [IsRegisteredUser]
+
+    def post(self, request, pk):
+        try:
+            issue = Issue.objects.get(pk=pk)
+        except Issue.DoesNotExist:
+            return Response(
+                {"detail": "Issue not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        vote, created = IssueVote.objects.get_or_create(
+            issue=issue,
+            user=request.user
+        )
+
+        if not created:
+            return Response(
+                {"detail": "You have already upvoted this issue."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(
+            {"detail": "Issue upvoted successfully."},
+            status=status.HTTP_201_CREATED
+        )
+
+
+class IssueRemoveVoteView(APIView):
+    permission_classes = [IsRegisteredUser]
+
+    def delete(self, request, pk):
+        try:
+            vote = IssueVote.objects.get(
+                issue_id=pk,
+                user=request.user
+            )
+        except IssueVote.DoesNotExist:
+            return Response(
+                {"detail": "You have not upvoted this issue."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        vote.delete()
+
+        return Response(
+            {"detail": "Upvote removed successfully."},
+            status=status.HTTP_200_OK
+        )
