@@ -1,9 +1,15 @@
+
 from rest_framework import serializers
 
 from .models import Issue
 
 
 class IssueSerializer(serializers.ModelSerializer):
+    vote_count = serializers.IntegerField(
+        source='votes.count',
+        read_only=True
+    )
+
     class Meta:
         model = Issue
         fields = [
@@ -14,11 +20,17 @@ class IssueSerializer(serializers.ModelSerializer):
             'description',
             'latitude',
             'longitude',
-            
+            'vote_count',
             'created_at',
             'updated_at',
         ]
-        read_only_fields = ['id', 'created_at', 'priority','updated_at']
+        read_only_fields = [
+            'id',
+            'created_at',
+            'priority',
+            'updated_at',
+            'vote_count',
+        ]
 
     def validate_category(self, value):
         if not value.is_active:

@@ -66,3 +66,27 @@ class Issue(models.Model):
 
     def __str__(self):
         return self.title
+
+class IssueVote(models.Model):
+    issue = models.ForeignKey(
+        Issue,
+        on_delete=models.CASCADE,
+        related_name='votes'
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='issue_votes'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['issue', 'user'],
+                name='unique_issue_user_vote'
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.user} voted for {self.issue}"

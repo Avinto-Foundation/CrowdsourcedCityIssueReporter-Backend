@@ -8,7 +8,7 @@ from rest_framework.test import APITestCase
 from apps.accounts.models import Role, User
 from apps.categories.models import Category
 from apps.geography.models import District, Municipality, Ward
-from apps.issues.models import Issue
+from apps.issues.models import Issue, IssueVote
 
 
 class IssueCreationTests(APITestCase):
@@ -92,6 +92,214 @@ class IssueCreationTests(APITestCase):
             "latitude": 27.7172,
             "longitude": 85.3240,
         }
+
+    def test_registered_user_can_upvote_issue(self):
+        issue = Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Test Issue",
+            description="Test description",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post(
+            reverse("issue-vote", kwargs={"pk": issue.id})
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_201_CREATED,
+        )
+        self.assertTrue(
+            IssueVote.objects.filter(
+                issue=issue,
+                user=self.user
+            ).exists()
+        )
+
+    def test_user_cannot_upvote_same_issue_twice(self):
+        issue = Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Test Issue",
+            description="Test description",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        self.client.force_authenticate(user=self.user)
+
+        self.client.post(
+            reverse("issue-vote", kwargs={"pk": issue.id})
+        )
+
+        response = self.client.post(
+            reverse("issue-vote", kwargs={"pk": issue.id})
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertEqual(
+            IssueVote.objects.filter(
+                issue=issue,
+                user=self.user
+            ).count(),
+            1
+        )
+
+    def test_registered_user_can_remove_upvote(self):
+        issue = Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Test Issue",
+            description="Test description",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        IssueVote.objects.create(
+            issue=issue,
+            user=self.user
+        )
+
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.delete(
+            reverse("issue-unvote", kwargs={"pk": issue.id})
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+        self.assertFalse(
+            IssueVote.objects.filter(
+                issue=issue,
+                user=self.user
+            ).exists()
+        )
+    
+
+    def test_user_cannot_remove_vote_they_have_not_made(self):
+        issue = Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Test Issue",
+            description="Test description",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.delete(
+            reverse("issue-unvote", kwargs={"pk": issue.id})
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_404_NOT_FOUND,
+        )
+
+    def test_guest_cannot_upvote_issue(self):
+        issue = Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Test Issue",
+            description="Test description",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        response = self.client.post(
+            reverse("issue-vote", kwargs={"pk": issue.id})
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_401_UNAUTHORIZED,
+        )
+
+    def test_municipality_staff_cannot_upvote_issue(self):
+        issue = Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Test Issue",
+            description="Test description",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        self.client.force_authenticate(user=self.staff_user)
+
+        response = self.client.post(
+            reverse("issue-vote", kwargs={"pk": issue.id})
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_403_FORBIDDEN,
+        )
+
+    def test_user_cannot_upvote_nonexistent_issue(self):
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post(
+            reverse("issue-vote", kwargs={"pk": 99999})
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_404_NOT_FOUND,
+        )
+
+    def test_issue_list_displays_vote_count(self):
+        issue = Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Test Issue",
+            description="Test description",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        IssueVote.objects.create(issue=issue, user=self.user)
+
+        response = self.client.get(reverse("issue-list"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["results"][0]["vote_count"], 1)
+
+    def test_issue_vote_count_is_zero_by_default(self):
+        issue = Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Test Issue",
+            description="Test description",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        response = self.client.get(
+            reverse("issue-detail", kwargs={"pk": issue.id})
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["vote_count"], 0)
+
 
     def test_registered_user_can_create_issue(self):
         self.client.force_authenticate(user=self.user)
@@ -789,3 +997,54 @@ class IssueCreationTests(APITestCase):
 
         self.assertIsNotNone(response.data["next"])
         self.assertIsNone(response.data["previous"])
+
+    def test_issues_are_sorted_by_most_upvoted_first(self):
+        issue_with_more_votes = Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Issue with more votes",
+            description="Test description",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        issue_with_fewer_votes = Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Issue with fewer votes",
+            description="Test description",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        IssueVote.objects.create(
+            issue=issue_with_more_votes,
+            user=self.user
+        )
+
+        IssueVote.objects.create(
+            issue=issue_with_more_votes,
+            user=self.staff_user
+        )
+
+        IssueVote.objects.create(
+            issue=issue_with_fewer_votes,
+            user=self.user
+        )
+
+        response = self.client.get(
+            reverse("issue-list"),
+            {"sort": "most_upvoted"}
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK
+        )
+
+        self.assertEqual(
+            response.data["results"][0]["id"],
+            issue_with_more_votes.id
+        )
