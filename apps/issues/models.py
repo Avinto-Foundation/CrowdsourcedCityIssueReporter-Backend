@@ -90,3 +90,20 @@ class IssueVote(models.Model):
 
     def __str__(self):
         return f"{self.user} voted for {self.issue}"
+class IssueComment(models.Model):
+    issue = models.ForeignKey(
+        Issue,
+        on_delete=models.CASCADE,
+        related_name='comments'
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='issue_comments'
+    )
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Comment by {self.user} on {self.issue}"

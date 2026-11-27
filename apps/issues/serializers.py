@@ -1,7 +1,7 @@
 
 from rest_framework import serializers
 
-from .models import Issue
+from .models import Issue, IssueComment
 
 
 class IssueSerializer(serializers.ModelSerializer):
@@ -38,3 +38,23 @@ class IssueSerializer(serializers.ModelSerializer):
                 "This category is currently inactive."
             )
         return value
+
+
+class IssueCommentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = IssueComment
+        fields = [
+            'id',
+            'issue',
+            'user',
+            'content',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = [
+            'id',
+            'issue',
+            'user',
+            'created_at',
+            'updated_at',
+        ]
