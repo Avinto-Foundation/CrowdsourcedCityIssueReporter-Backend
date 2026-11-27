@@ -1,4 +1,6 @@
 
+from django.utils import timezone
+from datetime import timedelta
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -584,4 +586,146 @@ class IssueCreationTests(APITestCase):
         self.assertEqual(
             response.data[0]["title"],
             "Submitted Issue",
+        )
+
+    def test_issues_are_sorted_by_newest_first_by_default(self):
+        Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Older Issue",
+            description="An older issue",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Newer Issue",
+            description="A newer issue",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        response = self.client.get(reverse("issue-list"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data[0]["title"],
+            "Newer Issue",
+        )
+
+    def test_issues_are_sorted_by_oldest_first(self):
+        Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Older Issue",
+            description="An older issue",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Newer Issue",
+            description="A newer issue",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        response = self.client.get(
+            reverse("issue-list"),
+            {"sort": "oldest"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data[0]["title"],
+            "Older Issue",
+        )
+
+    def test_issues_are_sorted_by_highest_priority_first(self):
+        Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Low Priority Issue",
+            description="A low priority issue",
+            latitude=27.7172,
+            longitude=85.3240,
+            priority="Low",
+        )
+
+        Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Urgent Priority Issue",
+            description="An urgent priority issue",
+            latitude=27.7172,
+            longitude=85.3240,
+            priority="Urgent",
+        )
+
+        Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="High Priority Issue",
+            description="A high priority issue",
+            latitude=27.7172,
+            longitude=85.3240,
+            priority="High",
+        )
+
+        response = self.client.get(
+            reverse("issue-list"),
+            {"sort": "priority"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data[0]["title"],
+            "Urgent Priority Issue",
+        )
+
+    def test_issues_are_sorted_by_recently_updated_first(self):
+        older_issue = Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Older Updated Issue",
+            description="An older updated issue",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Recently Updated Issue",
+            description="A recently updated issue",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        Issue.objects.filter(pk=older_issue.pk).update(
+            updated_at=timezone.now() - timedelta(days=1)
+        )
+
+        response = self.client.get(
+            reverse("issue-list"),
+            {"sort": "recently_updated"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data[0]["title"],
+            "Recently Updated Issue",
         )
