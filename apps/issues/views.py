@@ -27,6 +27,7 @@ class IssueListView(generics.ListAPIView):
         municipality_id = self.request.query_params.get('municipality')
         ward_id = self.request.query_params.get('ward')
         search_query = self.request.query_params.get('search')
+        status_value = self.request.query_params.get('status')
 
         if category_id:
             queryset = queryset.filter(category_id=category_id)
@@ -40,6 +41,8 @@ class IssueListView(generics.ListAPIView):
             )
         if ward_id:
             queryset = queryset.filter(ward_id=ward_id)
+        if status_value:
+            queryset = queryset.filter(status=status_value)
 
         if search_query:
             queryset = queryset.filter(
