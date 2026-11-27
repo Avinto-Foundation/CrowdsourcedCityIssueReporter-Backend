@@ -257,7 +257,7 @@ class IssueCreationTests(APITestCase):
             status.HTTP_200_OK,
         )
 
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(len(response.data["results"]), 1)
 
     def test_guest_can_view_issue_details(self):
         issue = Issue.objects.create(
@@ -322,9 +322,9 @@ class IssueCreationTests(APITestCase):
             status.HTTP_200_OK,
         )
 
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(len(response.data["results"]), 1)
         self.assertEqual(
-            response.data[0]["title"],
+            response.data["results"][0]["title"],
             "Road Damage Issue",
         )
 
@@ -359,9 +359,9 @@ class IssueCreationTests(APITestCase):
             status.HTTP_200_OK,
         )
 
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(len(response.data["results"]), 1)
         self.assertEqual(
-            response.data[0]["title"],
+            response.data["results"][0]["title"],
             "First District Issue",
         )
 
@@ -396,9 +396,9 @@ class IssueCreationTests(APITestCase):
             status.HTTP_200_OK,
         )
 
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(len(response.data["results"]), 1)
         self.assertEqual(
-            response.data[0]["title"],
+            response.data["results"][0]["title"],
             "First Municipality Issue",
         )
 
@@ -433,9 +433,9 @@ class IssueCreationTests(APITestCase):
             status.HTTP_200_OK,
         )
 
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(len(response.data["results"]), 1)
         self.assertEqual(
-            response.data[0]["title"],
+            response.data["results"][0]["title"],
             "Ward 1 Issue",
         )
 
@@ -469,9 +469,9 @@ class IssueCreationTests(APITestCase):
             response.status_code,
             status.HTTP_200_OK,
         )
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(len(response.data["results"]), 1)
         self.assertEqual(
-            response.data[0]["title"],
+            response.data["results"][0]["title"],
             "Pothole on Main Road",
         )
 
@@ -505,9 +505,9 @@ class IssueCreationTests(APITestCase):
             response.status_code,
             status.HTTP_200_OK,
         )
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(len(response.data["results"]), 1)
         self.assertEqual(
-            response.data[0]["title"],
+            response.data["results"][0]["title"],
             "Road Problem",
         )
 
@@ -544,9 +544,9 @@ class IssueCreationTests(APITestCase):
             response.status_code,
             status.HTTP_200_OK,
         )
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(len(response.data["results"]), 1)
         self.assertEqual(
-            response.data[0]["title"],
+            response.data["results"][0]["title"],
             "Pothole on Main Road",
         )
 
@@ -582,9 +582,9 @@ class IssueCreationTests(APITestCase):
             response.status_code,
             status.HTTP_200_OK,
         )
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(len(response.data["results"]), 1)
         self.assertEqual(
-            response.data[0]["title"],
+            response.data["results"][0]["title"],
             "Submitted Issue",
         )
 
@@ -613,7 +613,7 @@ class IssueCreationTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(
-            response.data[0]["title"],
+            response.data["results"][0]["title"],
             "Newer Issue",
         )
 
@@ -645,7 +645,7 @@ class IssueCreationTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(
-            response.data[0]["title"],
+            response.data["results"][0]["title"],
             "Older Issue",
         )
 
@@ -690,7 +690,7 @@ class IssueCreationTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(
-            response.data[0]["title"],
+            response.data["results"][0]["title"],
             "Urgent Priority Issue",
         )
 
@@ -726,6 +726,66 @@ class IssueCreationTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(
-            response.data[0]["title"],
+            response.data["results"][0]["title"],
             "Recently Updated Issue",
         )
+
+    def test_issue_list_returns_maximum_10_issues_per_page(self):
+        for i in range(12):
+            Issue.objects.create(
+                user=self.user,
+                category=self.category,
+                ward=self.ward,
+                title=f"Test Issue {i}",
+                description=f"Description for issue {i}",
+                latitude=27.7172,
+                longitude=85.3240,
+            )
+
+        response = self.client.get(reverse("issue-list"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 10)
+        self.assertEqual(response.data["count"], 12)
+
+    def test_issue_list_returns_remaining_issues_on_second_page(self):
+        for i in range(12):
+            Issue.objects.create(
+                user=self.user,
+                category=self.category,
+                ward=self.ward,
+                title=f"Test Issue {i}",
+                description=f"Description for issue {i}",
+                latitude=27.7172,
+                longitude=85.3240,
+            )
+
+        response = self.client.get(
+            reverse("issue-list") + "?page=2"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 2)
+        self.assertEqual(response.data["count"], 12)
+
+    def test_issue_list_contains_pagination_metadata(self):
+        for i in range(12):
+            Issue.objects.create(
+                user=self.user,
+                category=self.category,
+                ward=self.ward,
+                title=f"Test Issue {i}",
+                description=f"Description for issue {i}",
+                latitude=27.7172,
+                longitude=85.3240,
+            )
+
+        response = self.client.get(reverse("issue-list"))
+
+        self.assertIn("count", response.data)
+        self.assertIn("next", response.data)
+        self.assertIn("previous", response.data)
+        self.assertIn("results", response.data)
+
+        self.assertIsNotNone(response.data["next"])
+        self.assertIsNone(response.data["previous"])
