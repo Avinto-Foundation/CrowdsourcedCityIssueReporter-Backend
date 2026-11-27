@@ -8,7 +8,7 @@ from rest_framework.test import APITestCase
 from apps.accounts.models import Role, User
 from apps.categories.models import Category
 from apps.geography.models import District, Municipality, Ward
-from apps.issues.models import Issue, IssueVote
+from apps.issues.models import Issue, IssueVote, IssueComment
 
 
 class IssueCreationTests(APITestCase):
@@ -1047,4 +1047,234 @@ class IssueCreationTests(APITestCase):
         self.assertEqual(
             response.data["results"][0]["id"],
             issue_with_more_votes.id
+        )
+
+    def test_registered_user_can_create_comment(self):
+        issue = Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Test Issue",
+            description="Test description",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post(
+            reverse("issue-comment-list-create", kwargs={"pk": issue.id}),
+            {"content": "This issue needs attention."},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(
+            IssueComment.objects.filter(
+                issue=issue,
+                user=self.user,
+                content="This issue needs attention."
+            ).exists()
+        )
+
+    def test_guest_cannot_create_comment(self):
+        issue = Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Test Issue",
+            description="Test description",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        response = self.client.post(
+            reverse("issue-comment-list-create", kwargs={"pk": issue.id}),
+            {"content": "Guest comment"},
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_401_UNAUTHORIZED
+        )
+
+    def test_municipality_staff_cannot_create_comment(self):
+        issue = Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Test Issue",
+            description="Test description",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        self.client.force_authenticate(user=self.staff_user)
+
+        response = self.client.post(
+            reverse("issue-comment-list-create", kwargs={"pk": issue.id}),
+            {"content": "Staff comment"},
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_403_FORBIDDEN
+        )
+
+    def test_guest_can_view_issue_comments(self):
+        issue = Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Test Issue",
+            description="Test description",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        IssueComment.objects.create(
+            issue=issue,
+            user=self.user,
+            content="Public comment",
+        )
+
+        response = self.client.get(
+            reverse("issue-comment-list-create", kwargs={"pk": issue.id})
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 1)
+
+    def test_user_can_edit_own_comment(self):
+        issue = Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Test Issue",
+            description="Test description",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        comment = IssueComment.objects.create(
+            issue=issue,
+            user=self.user,
+            content="Original comment",
+        )
+
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.patch(
+            reverse("issue-comment-detail", kwargs={"pk": comment.id}),
+            {"content": "Updated comment"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        comment.refresh_from_db()
+        self.assertEqual(comment.content, "Updated comment")
+
+    def test_user_can_delete_own_comment(self):
+        issue = Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Test Issue",
+            description="Test description",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        comment = IssueComment.objects.create(
+            issue=issue,
+            user=self.user,
+            content="Comment to delete",
+        )
+
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.delete(
+            reverse("issue-comment-detail", kwargs={"pk": comment.id})
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(
+            IssueComment.objects.filter(pk=comment.id).exists()
+        )
+
+    def test_user_cannot_edit_another_users_comment(self):
+        issue = Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Test Issue",
+            description="Test description",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        comment = IssueComment.objects.create(
+            issue=issue,
+            user=self.user,
+            content="Original comment",
+        )
+
+        another_user = User.objects.create_user(
+            username="anotheruser",
+            email="anotheruser@example.com",
+            password="TestPassword123!",
+            full_name="Another User",
+            role=self.registered_role,
+        )
+
+        self.client.force_authenticate(user=another_user)
+
+        response = self.client.patch(
+            reverse("issue-comment-detail", kwargs={"pk": comment.id}),
+            {"content": "Trying to edit"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+        comment.refresh_from_db()
+        self.assertEqual(comment.content, "Original comment")
+
+    def test_user_cannot_delete_another_users_comment(self):
+        issue = Issue.objects.create(
+            user=self.user,
+            category=self.category,
+            ward=self.ward,
+            title="Test Issue",
+            description="Test description",
+            latitude=27.7172,
+            longitude=85.3240,
+        )
+
+        comment = IssueComment.objects.create(
+            issue=issue,
+            user=self.user,
+            content="Original comment",
+        )
+
+        another_user = User.objects.create_user(
+            username="anotheruser",
+            email="anotheruser@example.com",
+            password="TestPassword123!",
+            full_name="Another User",
+            role=self.registered_role,
+        )
+
+        self.client.force_authenticate(user=another_user)
+
+        response = self.client.delete(
+            reverse("issue-comment-detail", kwargs={"pk": comment.id})
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertTrue(
+            IssueComment.objects.filter(pk=comment.id).exists()
         )

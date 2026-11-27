@@ -6,8 +6,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 
-from .models import Issue, IssueVote
-from .serializers import IssueSerializer
+from .models import Issue, IssueVote, IssueComment
+from .serializers import IssueSerializer, IssueCommentSerializer
 from .permissions import IsRegisteredUser
 
 
@@ -143,4 +143,40 @@ class IssueRemoveVoteView(APIView):
         return Response(
             {"detail": "Upvote removed successfully."},
             status=status.HTTP_200_OK
+        )
+
+
+class IssueCommentListCreateView(generics.ListCreateAPIView):
+    serializer_class = IssueCommentSerializer
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [AllowAny()]
+        return [IsRegisteredUser()]
+
+    def get_queryset(self):
+        return IssueComment.objects.filter(
+            issue_id=self.kwargs['pk']
+        ).order_by('created_at')
+
+    def perform_create(self, serializer):
+        try:
+            issue = Issue.objects.get(pk=self.kwargs['pk'])
+        except Issue.DoesNotExist:
+            from rest_framework.exceptions import NotFound
+            raise NotFound("Issue not found.")
+
+        serializer.save(
+            issue=issue,
+            user=self.request.user
+        )
+
+
+class IssueCommentDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = IssueCommentSerializer
+    permission_classes = [IsRegisteredUser]
+
+    def get_queryset(self):
+        return IssueComment.objects.filter(
+            user=self.request.user
         )
